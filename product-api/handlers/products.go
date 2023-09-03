@@ -1,3 +1,21 @@
+// Package classification at product api
+//
+// Documentation for Product API
+// 
+// Schemes: http
+// Host: localhost
+// BasePath: /product
+// version: 1.0.0
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+//swagger:meta
+
+
+
 package handlers
 
 import (
@@ -21,25 +39,34 @@ func NewProducts(l *log.Logger) *Products {
 }
 
 func (p *Products) Routes() chi.Router {
+
 	r := chi.NewRouter()
 	r.Get("/", p.GetProduct)
-	r.Post("/", p.AddProduct)
-	r.Put("/{id:[0-9]+}", p.UpdateProduct)
+	r.With(ProductValidationMiddleWare).Post("/", p.AddProduct)
+	r.With(ProductValidationMiddleWare).Put("/{id:[0-9]+}", p.UpdateProduct)
+
+	r.Route("/{id:[0-9]+}", func(r chi.Router) {
+		// r.Use(ProductCtx)
+		// r.Get("/", h http.HandlerFunc)
+
+	})
+    r.Options("/", http.HandlerFunc(func (w http.ResponseWriter, r *http.Request){
+        w.Header().Set("Allow", fmt.Sprintf("%s, %s, %s, %s", http.MethodGet, http.MethodPut, http.MethodPost, http.MethodOptions ))
+        w.WriteHeader(http.StatusNoContent)
+    }))
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
 
 	return r
 }
 
 func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
-	// context.WithValue(parent context.Context, key any, val any)
 	p.l.Println("Handle POST Product ")
-	product := &data.Product{}
-	err := product.FromJson(r.Body)
-	if err != nil {
-		http.Error(w, "Error while reading the json", http.StatusInternalServerError)
-		return
-	}
-	p.l.Printf("%v ", product)
-	productID := data.AddProduct(product)
+
+	prod := r.Context().Value(ProductKey{}).(data.Product)
+	productID := data.AddProduct(&prod)
 	fmt.Fprintf(w, "Id: %d", productID)
 }
 
@@ -81,22 +108,37 @@ func (p *Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid Integer", http.StatusBadRequest)
 		return
 	}
-	prod := &data.Product{}
-	err = prod.FromJson(r.Body)
-	if err != nil {
-		http.Error(w, "Error while reading the json", http.StatusInternalServerError)
-		return
-	}
 
-	err = data.UpdateProduct(id, prod)
+	prod := r.Context().Value(ProductKey{}).(data.Product)
+
+	err = data.UpdateProduct(id, &prod)
 	if err == data.ErrProductNotFound {
 		http.Error(w, "Product Not Found", http.StatusNotFound)
 		return
 	}
+
 	if err != nil {
 		http.Error(w, "Product Not Found", http.StatusInternalServerError)
 		return
 
 	}
 
+}
+
+type ProductKey struct{}
+
+func ProductValidationMiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prod := data.Product{}
+		err := prod.FromJson(r.Body)
+		if err != nil {
+			http.Error(w, "Error while reading the json", http.StatusBadRequest)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ProductKey{}, prod)
+		fmt.Println(prod)
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
 }
