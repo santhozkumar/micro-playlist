@@ -3,15 +3,15 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
 type Hello struct {
-	l *log.Logger
+	l *slog.Logger
 }
 
-func NewHello(l *log.Logger) *Hello {
+func NewHello(l *slog.Logger) *Hello {
 	return &Hello{l}
 }
 
@@ -22,7 +22,8 @@ func (h *Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to read the data", http.StatusBadRequest)
 		return
 	}
-	h.l.Printf("Hello Processed: %s", d)
+
+	h.l.Log(r.Context(), slog.LevelInfo, fmt.Sprintf("Hello Processed: %s", d))
 	fmt.Fprintf(w, "Hello %s", d)
 
 }

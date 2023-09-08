@@ -1,46 +1,38 @@
-// Package classification at product api
-//
-// Documentation for Product API
-// 
-// Schemes: http
-// Host: localhost
-// BasePath: /product
-// version: 1.0.0
-//
-// Consumes:
-// - application/json
-//
-// Produces:
-// - application/json
-//swagger:meta
-
-
-
 package handlers
 
 import (
 	"context"
 	"fmt"
-	"log"
+    "log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/cors"
 	"github.com/santhozkumar/micro-playlist/product-api/data"
 )
 
 type Products struct {
-	l *log.Logger
+	l *slog.Logger
 }
 
-func NewProducts(l *log.Logger) *Products {
+func NewProducts(l *slog.Logger) *Products {
 	return &Products{l}
 }
 
 func (p *Products) Routes() chi.Router {
 
 	r := chi.NewRouter()
+	cors_instance := cors.New(cors.Options{
+                AllowedOrigins: []string{"*"},
+                AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut},
+                AllowCredentials: false,
+                MaxAge: int(time.Hour * 24),
+            })
+    r.Use(cors_instance.Handler)
+
+
 	r.Get("/", p.GetProduct)
 	r.With(ProductValidationMiddleWare).Post("/", p.AddProduct)
 	r.With(ProductValidationMiddleWare).Put("/{id:[0-9]+}", p.UpdateProduct)
@@ -50,10 +42,10 @@ func (p *Products) Routes() chi.Router {
 		// r.Get("/", h http.HandlerFunc)
 
 	})
-    r.Options("/", http.HandlerFunc(func (w http.ResponseWriter, r *http.Request){
-        w.Header().Set("Allow", fmt.Sprintf("%s, %s, %s, %s", http.MethodGet, http.MethodPut, http.MethodPost, http.MethodOptions ))
-        w.WriteHeader(http.StatusNoContent)
-    }))
+	r.Options("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Allow", fmt.Sprintf("%s, %s, %s, %s", http.MethodGet, http.MethodPut, http.MethodPost, http.MethodOptions))
+		w.WriteHeader(http.StatusNoContent)
+	}))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
@@ -63,7 +55,7 @@ func (p *Products) Routes() chi.Router {
 }
 
 func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle POST Product ")
+    p.l.Log(r.Context(), slog.LevelInfo, "Handle POST Product ")
 
 	prod := r.Context().Value(ProductKey{}).(data.Product)
 	productID := data.AddProduct(&prod)
@@ -71,7 +63,7 @@ func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Products) GetProduct(w http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle GET Product ")
+    p.l.Log(r.Context(), slog.LevelInfo, "Handle GET Product ")
 	ctx, cancel := context.WithTimeout(r.Context(), time.Millisecond*1000)
 	defer cancel()
 
@@ -102,7 +94,7 @@ func (p *Products) GetProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	p.l.Println("Handle PUT Product ")
+    p.l.Log(r.Context(), slog.LevelInfo, "Handle PUT Product ")
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "Invalid Integer", http.StatusBadRequest)

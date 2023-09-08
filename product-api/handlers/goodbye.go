@@ -1,25 +1,21 @@
 package handlers
 
-
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
 type Goodbye struct {
-    l *log.Logger
+	l *slog.Logger
 }
 
-
-func NewGoodbye(l *log.Logger) *Goodbye {
-    return &Goodbye{l}
+func NewGoodbye(l *slog.Logger) *Goodbye {
+	return &Goodbye{l}
 }
-
 
 func (g *Goodbye) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-    g.l.Println("goddbye processed")
-    fmt.Fprintf(w, "Good bye")
+	g.l.Log(r.Context(), slog.LevelInfo, "goddbye processed")
+	fmt.Fprintf(w, "Good bye")
 
 }
