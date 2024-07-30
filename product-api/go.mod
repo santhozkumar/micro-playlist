@@ -1,5 +1,6 @@
 module github.com/santhozkumar/micro-playlist/product-api
 
+<<<<<<< Updated upstream
 go 1.21.0
 
 require github.com/go-chi/chi/v5 v5.0.10
@@ -16,3 +17,6 @@ require (
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 )
+=======
+go 1.21
+>>>>>>> Stashed changes
